@@ -15,6 +15,7 @@ function createStore() {
     socialAccounts: [],
     games: [],
     revisions: [],
+    conflictResolutions: [],
     sessions: [],
     nextIds: {
       user: 1,
@@ -506,7 +507,25 @@ function createApp(store = createStore()) {
           }
 
           const latest = getLatestRevision(store, game.id);
-          if (latest && clientUpdatedAt && clientUpdatedAtMs < Date.parse(latest.createdAt)) {
+          const resolution = latest
+            ? store.conflictResolutions
+                .slice()
+                .reverse()
+                .find(
+                  (item) =>
+                    item.gameId === game.id &&
+                    item.userId === authUser.id &&
+                    item.revisionId === latest.id &&
+                    item.strategy === "overwrite-server",
+                )
+            : null;
+
+          if (
+            latest &&
+            clientUpdatedAt &&
+            clientUpdatedAtMs < Date.parse(latest.createdAt) &&
+            !resolution
+          ) {
             return json(res, 409, {
               error: "revision_conflict",
               latestRevision: latest,
@@ -542,51 +561,25 @@ function createApp(store = createStore()) {
             game.id,
             revisionPath.revisionId,
           );
-
           if (!baseRevision) {
             return json(res, 404, { error: "not_found", message: "Base revision not found" });
           }
 
-          const artifact = parseArtifact(body);
-          if (artifact && artifact.error) {
-            return json(res, 400, { error: artifact.error });
+          const strategy = String(body.strategy || "").trim();
+          if (strategy !== "overwrite-server" && strategy !== "prefer-server" && strategy !== "") {
+            return json(res, 400, { error: "invalid_resolution_strategy" });
           }
 
-          const checksum = artifact ? artifact.checksum : String(body.checksum || "").trim();
-          const sizeBytes = artifact ? artifact.sizeBytes : Number(body.sizeBytes || 0);
-          const note = String(body.note || `resolved from ${revisionPath.revisionId}`).trim();
-          const clientUpdatedAt = body.clientUpdatedAt ? String(body.clientUpdatedAt).trim() : null;
-          const clientUpdatedAtMs = clientUpdatedAt ? Date.parse(clientUpdatedAt) : null;
-
-          if (clientUpdatedAt && !Number.isFinite(clientUpdatedAtMs)) {
-            return json(res, 400, { error: "invalid_client_updated_at" });
-          }
-
-          if (!checksum || !Number.isFinite(sizeBytes) || sizeBytes <= 0) {
-            return json(res, 400, { error: "checksum and positive sizeBytes are required" });
-          }
-
-          const revision = createRevisionRecord(store, authUser, game, {
-            checksum,
-            sizeBytes,
-            note,
-            clientUpdatedAt: clientUpdatedAt || null,
-            conflictResolvedFrom: revisionPath.revisionId,
+          store.conflictResolutions.push({
+            gameId: game.id,
+            userId: authUser.id,
+            revisionId: baseRevision.id,
+            strategy: strategy || "overwrite-server",
+            createdAt: nowIso(),
           });
-
-          if (artifact) {
-            const artifactPath = ensureRevisionPath(authUser.id, game.id, revision.id);
-            const normalizedArtifactPath = path.relative(process.cwd(), artifactPath);
-            withStorageDir(authUser.id, game.id, () => {
-              fs.mkdirSync(path.dirname(artifactPath), { recursive: true });
-              fs.writeFileSync(artifactPath, artifact.compressed);
-            });
-            revision.artifactPath = `/mock-storage/${normalizedArtifactPath}`;
-          }
-
           return json(res, 201, {
-            revision,
             resolvedFrom: baseRevision.id,
+            strategy: strategy || "overwrite-server",
           });
         }
 

@@ -106,6 +106,34 @@ test("cannot access another user's game by id", async () => {
   });
 });
 
+test("game savePath is forced into requesting user's namespace", async () => {
+  await withServer(async (baseUrl) => {
+    const login = await oauthLogin(baseUrl, "google", "namespace");
+    const game = await createGame(baseUrl, login.accessToken, "Ori");
+
+    assert.equal(game.savePath.startsWith(`/users/${login.user.id}/`), true);
+  });
+});
+
+test("cannot access another user's revisions endpoint", async () => {
+  await withServer(async (baseUrl) => {
+    const owner = await oauthLogin(baseUrl, "google", "owner-path");
+    const intruder = await oauthLogin(baseUrl, "facebook", "intruder-path");
+
+    const game = await createGame(baseUrl, owner.accessToken, "Path of Exile");
+
+    const listRes = await fetch(`${baseUrl}/games/${game.id}/revisions`, {
+      headers: { authorization: `Bearer ${intruder.accessToken}` },
+    });
+    assert.equal(listRes.status, 403);
+
+    const latestRes = await fetch(`${baseUrl}/games/${game.id}/revisions/latest`, {
+      headers: { authorization: `Bearer ${intruder.accessToken}` },
+    });
+    assert.equal(latestRes.status, 403);
+  });
+});
+
 test("logout invalidates old access token", async () => {
   await withServer(async (baseUrl) => {
     const login = await oauthLogin(baseUrl, "google", "logout");
@@ -214,6 +242,62 @@ test("returns conflict when client uploads stale revision", async () => {
     assert.equal(staleUploadRes.status, 409);
     const staleBody = await staleUploadRes.json();
     assert.equal(staleBody.error, "revision_conflict");
+  });
+});
+
+test("manual conflict resolution allows stale upload", async () => {
+  await withServer(async (baseUrl) => {
+    const login = await oauthLogin(baseUrl, "google", "manual-resolve");
+    const game = await createGame(baseUrl, login.accessToken, "Apex");
+
+    const firstUploadRes = await fetch(`${baseUrl}/games/${game.id}/revisions`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${login.accessToken}`,
+      },
+      body: JSON.stringify({ checksum: "sha256:first", sizeBytes: 120 }),
+    });
+    assert.equal(firstUploadRes.status, 201);
+    const firstBody = await firstUploadRes.json();
+
+    const staleUploadRes = await fetch(`${baseUrl}/games/${game.id}/revisions`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${login.accessToken}`,
+      },
+      body: JSON.stringify({
+        checksum: "sha256:stale",
+        sizeBytes: 121,
+        clientUpdatedAt: "2000-01-01T00:00:00.000Z",
+      }),
+    });
+    assert.equal(staleUploadRes.status, 409);
+
+    const resolveRes = await fetch(`${baseUrl}/games/${game.id}/revisions/${firstBody.revision.id}/resolve`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${login.accessToken}`,
+      },
+      body: JSON.stringify({ strategy: "overwrite-server" }),
+    });
+    assert.equal(resolveRes.status, 201);
+
+    const resolveUploadRes = await fetch(`${baseUrl}/games/${game.id}/revisions`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${login.accessToken}`,
+      },
+      body: JSON.stringify({
+        checksum: "sha256:force",
+        sizeBytes: 122,
+        clientUpdatedAt: "2000-01-01T00:00:00.000Z",
+      }),
+    });
+    assert.equal(resolveUploadRes.status, 201);
   });
 });
 

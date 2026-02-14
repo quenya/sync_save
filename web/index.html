@@ -5,17 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>sync_save</title>
     <style>
+      @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap");
+
       :root {
-        --bg: #051937;
-        --bg-2: #003973;
-        --bg-3: #e2ecff;
-        --text: #0b1020;
-        --muted: #59667c;
-        --card: rgba(255, 255, 255, 0.93);
-        --line: rgba(8, 26, 50, 0.1);
-        --accent: #14b8a6;
-        --accent-2: #2563eb;
-        --danger: #dc2626;
+        --bg: linear-gradient(160deg, #0f172a 0%, #0b2a4a 52%, #172554 100%);
+        --panel: rgba(255, 255, 255, 0.94);
+        --text: #0f172a;
+        --sub: #475569;
+        --line: rgba(148, 163, 184, 0.32);
+        --accent: #0ea5e9;
+        --accent-strong: #0284c7;
+        --danger: #e11d48;
       }
 
       * {
@@ -24,706 +24,610 @@
 
       body {
         margin: 0;
+        padding: 0;
         min-height: 100vh;
-        font-family: "Inter Tight", "Pretendard", "Apple SD Gothic Neo", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         color: var(--text);
-        background:
-          radial-gradient(circle at 2% 2%, rgba(20, 184, 166, 0.45), transparent 28%),
-          radial-gradient(circle at 95% 12%, rgba(37, 99, 235, 0.35), transparent 25%),
-          linear-gradient(155deg, #f5f9ff 0%, var(--bg) 42%, #0a2540 100%);
-        padding: 16px 18px 30px;
+        font-family: "Inter", "Apple SD Gothic Neo", sans-serif;
+        background: var(--bg);
       }
 
-      .page {
+      .shell {
         max-width: 1100px;
         margin: 0 auto;
+        padding: 24px;
         display: grid;
-        gap: 14px;
+        gap: 16px;
       }
 
-      .topbar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 10px;
-        padding: 16px 18px;
-        border-radius: 18px;
-        background: rgba(255, 255, 255, 0.8);
-        border: 1px solid var(--line);
-        box-shadow: 0 18px 36px rgba(7, 16, 32, 0.2);
-      }
-
-      .title {
+      h1,
+      h2,
+      h3 {
         margin: 0;
+        font-family: "Space Grotesk", sans-serif;
+        letter-spacing: 0.2px;
+      }
+
+      h1 {
+        font-size: 36px;
+      }
+
+      h2 {
         font-size: 22px;
       }
 
-      .subtitle {
-        margin: 4px 0 0;
-        color: var(--muted);
-      }
-
-      .grid {
-        display: grid;
-        gap: 14px;
-        grid-template-columns: repeat(12, 1fr);
-      }
-
       .card {
-        grid-column: span 6;
-        border-radius: 18px;
-        background: var(--card);
+        background: var(--panel);
+        border-radius: 14px;
         border: 1px solid var(--line);
         padding: 16px;
         backdrop-filter: blur(4px);
       }
 
-      .card.wide {
-        grid-column: span 12;
-      }
-
-      .card h2 {
-        margin: 0 0 10px;
-        font-size: 19px;
-      }
-
-      .pill {
-        display: inline-block;
-        margin-top: 8px;
-        font-size: 11px;
-        background: #dbeafe;
-        color: #1e3a8a;
-        padding: 6px 10px;
-        border-radius: 999px;
-        letter-spacing: 0.02em;
-      }
-
       .row {
         display: flex;
-        gap: 8px;
         flex-wrap: wrap;
-        margin: 8px 0;
+        gap: 10px;
       }
 
-      .col {
+      .stack {
         display: grid;
-        gap: 8px;
-        min-width: 180px;
+        gap: 10px;
       }
 
-      input,
-      button,
-      textarea,
-      select {
+      .input {
+        border: 1px solid #cbd5e1;
         border-radius: 10px;
-        border: 1px solid var(--line);
         padding: 10px 12px;
-        font: inherit;
-        width: 100%;
         background: #fff;
+        width: min(360px, 100%);
       }
 
-      button {
-        background: var(--bg-3);
-        font-weight: 700;
-        color: #12243f;
+      .btn {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #ffffff;
+        color: #0f172a;
+        padding: 10px 14px;
+        font-weight: 600;
         cursor: pointer;
       }
 
-      button.primary {
+      .btn.primary {
         background: var(--accent);
         color: #fff;
         border-color: var(--accent);
       }
 
-      button.secondary {
-        background: var(--accent-2);
-        color: #fff;
-        border-color: var(--accent-2);
+      .btn.primary:hover {
+        background: var(--accent-strong);
       }
 
-      button.danger {
+      .btn.danger {
         background: #fee2e2;
-        color: var(--danger);
-        border-color: #fecaca;
-      }
-
-      button:disabled {
-        opacity: 0.6;
-        cursor: default;
-      }
-
-      .list {
-        margin: 8px 0 0;
-        padding: 0;
-        list-style: none;
-      }
-
-      .list li {
-        display: flex;
-        justify-content: space-between;
-        gap: 10px;
-        padding: 10px;
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        margin: 8px 0;
-        align-items: flex-start;
+        color: #7f1d1d;
+        border-color: #fecdd3;
       }
 
       .muted {
-        color: var(--muted);
-        font-size: 12px;
+        color: var(--sub);
+        font-size: 13px;
       }
 
-      .chip {
-        font-size: 11px;
-        padding: 2px 8px;
-        border-radius: 999px;
-        background: #d9f99d;
-        color: #365314;
-        font-weight: 700;
+      .split {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .panel-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
       }
 
       .status {
-        min-height: 22px;
-        color: #0f172a;
-        font-size: 13px;
-        margin-top: 6px;
+        padding: 9px 11px;
+        border-radius: 10px;
+        background: #e2e8f0;
+        border: 1px solid #cbd5e1;
       }
 
-      .status.bad {
-        color: var(--danger);
-      }
+      .status.ok { background: #dcfce7; border-color: #86efac; }
+      .status.warn { background: #fef08a; border-color: #fde047; }
+      .status.err { background: #ffe4e6; border-color: #fda4af; }
 
-      .status.good {
-        color: #047857;
-      }
-
-      .revisions {
+      ul.clean {
+        margin: 0;
+        padding: 0;
+        list-style: none;
         display: grid;
-        gap: 10px;
+        gap: 6px;
       }
 
-      pre {
-        margin: 8px 0;
-        background: #f8fafc;
-        border: 1px dashed var(--line);
+      .chip {
+        padding: 6px 10px;
+        border: 1px solid #bae6fd;
+        border-radius: 999px;
+        font-size: 11px;
+        color: #0c4a6e;
+        width: fit-content;
+      }
+
+      .game-item, .rev-item {
+        border: 1px solid var(--line);
         border-radius: 10px;
-        padding: 10px;
+        padding: 8px;
+        cursor: pointer;
+      }
+
+      .game-item.active { border-color: #0ea5e9; background: #f0f9ff; }
+
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
         font-size: 12px;
-        overflow-x: auto;
       }
 
-      .warn {
-        padding: 10px;
-        border-radius: 10px;
-        background: #fff7ed;
-        border: 1px solid #fed7aa;
-      }
-
-      @keyframes fadeUp {
-        from {
-          opacity: 0;
-          transform: translateY(8px);
+      @media (max-width: 860px) {
+        .split {
+          grid-template-columns: 1fr;
         }
 
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-
-      .card,
-      .topbar {
-        animation: fadeUp 450ms ease;
-      }
-
-      @media (max-width: 900px) {
-        .card {
-          grid-column: span 12;
+        .shell {
+          padding: 12px;
         }
 
-        .grid {
-          gap: 12px;
-        }
-      }
-
-      @media (max-width: 500px) {
-        body {
-          padding: 10px;
-        }
-
-        .topbar {
-          flex-direction: column;
-          align-items: flex-start;
-        }
-
-        .title {
-          font-size: 20px;
+        h1 {
+          font-size: 28px;
         }
       }
     </style>
   </head>
   <body>
-    <main class="page">
-      <header class="topbar">
-        <section>
-          <h1 class="title">sync_save Web</h1>
-          <p class="subtitle">Web Codex MVP — 계정격리 + 동기화 API 연동</p>
-        </section>
-        <button id="logoutButton" class="danger" type="button" disabled>로그아웃</button>
+    <main class="shell">
+      <header class="card">
+        <h1>sync_save</h1>
+        <p class="muted">OAuth(모의) 로그인 + 계정별 게임 저장 동기화 대시보드</p>
       </header>
 
-      <section class="grid">
-        <article class="card">
-          <h2>1) OAuth mock 로그인</h2>
-          <p class="muted">현재 엔드포인트는 provider UserId/Email/이름을 제출받는 모의 OAuth입니다.</p>
-          <div class="row">
-            <input id="oauthEmail" placeholder="email@example.com" />
-            <input id="oauthName" placeholder="이름" />
-          </div>
-          <div class="row">
-            <button type="button" class="primary" data-provider="google">Google 로그인</button>
-            <button type="button" class="secondary" data-provider="facebook">Facebook 로그인</button>
-          </div>
-          <p class="pill">로그인 후 토큰 기반 API</p>
-          <p id="authStatus" class="status">미로그인</p>
-          <pre id="userSummary">-</pre>
-        </article>
-
-        <article class="card">
-          <h2>2) 게임 등록 / 목록</h2>
-          <p class="muted">저장 경로는 사용자 전용 네임스페이스로 자동 보정됩니다.</p>
-          <div class="row">
-            <input id="gameName" placeholder="게임명 (예: Stardew Valley)" />
-            <input id="savePath" placeholder="저장 경로 (예: /saves/stardew)" />
-          </div>
-          <div class="row">
-            <button type="button" id="createGame" class="primary">게임 등록</button>
-            <button type="button" id="refreshGames">게임 새로고침</button>
-          </div>
-          <p id="gameStatus" class="status">로그인 필요</p>
-          <ul id="gameList" class="list"></ul>
-        </article>
-      </section>
-
-      <section class="grid">
-        <article class="card wide">
-          <h2>3) 업로드 / 다운로드 / 리비전</h2>
-          <div class="grid">
-            <div class="col">
-              <label>게임 선택</label>
-              <select id="activeGame"></select>
-            </div>
-            <div class="col">
-              <label>저장 데이터 해시</label>
-              <input id="revisionChecksum" value="sha256:sample" />
-            </div>
-            <div class="col">
-              <label>사이즈</label>
-              <input id="revisionSize" type="number" value="1024" />
-            </div>
-          </div>
-          <div class="row" style="margin-top: 10px;">
-            <textarea id="artifactData" rows="2" placeholder='선택: {"slot":1}를 base64로 넣으면 압축 저장 mock으로 반영됩니다.'></textarea>
-          </div>
-          <div class="row">
-            <button type="button" id="uploadRevision" class="primary">업로드</button>
-            <button type="button" id="refreshRevisions">리비전 조회</button>
-            <button type="button" id="downloadLatest">최신 다운로드</button>
-          </div>
-          <p id="revisionStatus" class="status">게임을 선택하세요.</p>
-          <div id="conflictZone" class="warn" hidden>
-            충돌 상태가 감지되면 여기서 수동 resolve를 시도하세요.
-          </div>
-          <div class="revisions">
-            <div>
-              <label>리비전 충돌 resolve</label>
-              <div class="row">
-                <input id="resolveRevisionId" type="number" placeholder="해결할 충돌 리비전 ID" />
-                <button type="button" id="resolveRevision" class="secondary">수동 resolve</button>
-              </div>
-            </div>
-          </div>
-          <pre id="revisionList">-</pre>
-        </article>
-      </section>
-
-      <section class="card wide">
-        <h2>4) 운영 응답</h2>
-        <div class="row">
-          <a id="openTodo" href="docs/ops/remaining-todo.md" style="display:none">TODO</a>
-          <button type="button" id="deleteAccount" class="danger">계정 탈퇴</button>
-          <button type="button" id="refreshToken">토큰 갱신</button>
+      <section class="card">
+        <div class="panel-title">
+          <h2>계정</h2>
+          <span class="status" id="authStatus">로그아웃 상태</span>
         </div>
-        <p id="opsStatus" class="status"></p>
+        <div class="row" style="margin-top: 10px; align-items: flex-start;">
+          <div class="stack">
+            <label>OAuth Provider</label>
+            <select id="provider" class="input"></select>
+            <input id="oauthId" class="input" placeholder="providerUserId" />
+            <input id="oauthEmail" class="input" type="email" placeholder="user@example.com" />
+            <input id="oauthName" class="input" placeholder="Player One" />
+            <div class="row">
+              <button class="btn primary" id="oauthLoginBtn">로그인</button>
+              <button class="btn danger" id="logoutBtn">로그아웃</button>
+            </div>
+          </div>
+          <div class="stack">
+            <label>세션</label>
+            <input id="apiBase" class="input" value="http://localhost:3000" />
+            <p class="muted">access/refresh 토큰이 브라우저 LocalStorage에 저장됩니다.</p>
+            <button class="btn" id="refreshBtn">토큰 갱신</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card split">
+        <div>
+          <div class="panel-title">
+            <h2>게임 등록/목록</h2>
+            <span class="chip">User scoped</span>
+          </div>
+          <div class="stack" style="margin-top: 10px;">
+            <input id="gameName" class="input" placeholder="게임명" />
+            <input id="savePath" class="input" placeholder="예: /saves/stardew" />
+            <button class="btn primary" id="createGameBtn">게임 등록</button>
+            <div id="gameMessage" class="muted"></div>
+            <ul id="gameList" class="clean"></ul>
+          </div>
+        </div>
+
+        <div>
+          <div class="panel-title">
+            <h2>선택 게임</h2>
+            <span class="status warn" id="selectedLabel">게임 선택 필요</span>
+          </div>
+          <div class="stack" style="margin-top: 10px;">
+            <div id="selectedSummary" class="muted">게임을 클릭하면 상세 정보를 표시합니다.</div>
+            <h3>리비전 업로드</h3>
+            <input id="checksum" class="input" placeholder="checksum" />
+            <input id="sizeBytes" class="input" placeholder="sizeBytes" />
+            <input id="clientUpdatedAt" class="input" placeholder="clientUpdatedAt(선택, ISO)" />
+            <input id="note" class="input" placeholder="note" />
+            <div class="row">
+              <button class="btn primary" id="uploadRevisionBtn">저장 업로드</button>
+              <button class="btn" id="forceUploadBtn">강제 업로드(시간 갱신)</button>
+            </div>
+            <div id="uploadMessage" class="muted"></div>
+
+            <h3>리비전 목록</h3>
+            <button class="btn" id="refreshRevisionsBtn">리비전 새로고침</button>
+            <ul id="revisionList" class="clean"></ul>
+            <p id="downloadLog" class="muted"></p>
+          </div>
+        </div>
       </section>
     </main>
 
     <script>
-      const API = location.origin.replace(/:\d+$/, ":3000");
+      const KEYS = {
+        accessToken: "sync_save_access_token",
+        refreshToken: "sync_save_refresh_token",
+      };
+
       const state = {
-        accessToken: "",
-        refreshToken: "",
+        accessToken: null,
+        refreshToken: null,
         games: [],
+        selectedGame: null,
+        revisions: [],
       };
 
-      const authStatusEl = document.getElementById("authStatus");
-      const userSummaryEl = document.getElementById("userSummary");
-      const gameStatusEl = document.getElementById("gameStatus");
-      const gameListEl = document.getElementById("gameList");
-      const activeGameEl = document.getElementById("activeGame");
-      const revisionStatusEl = document.getElementById("revisionStatus");
-      const revisionListEl = document.getElementById("revisionList");
-      const conflictZoneEl = document.getElementById("conflictZone");
-      const opsStatusEl = document.getElementById("opsStatus");
-      const logoutButton = document.getElementById("logoutButton");
+      const el = {};
+      for (const id of [
+        "authStatus", "provider", "oauthId", "oauthEmail", "oauthName", "oauthLoginBtn",
+        "logoutBtn", "apiBase", "refreshBtn", "gameName", "savePath", "createGameBtn",
+        "gameMessage", "gameList", "selectedLabel", "selectedSummary", "checksum", "sizeBytes",
+        "clientUpdatedAt", "note", "uploadRevisionBtn", "forceUploadBtn", "uploadMessage",
+        "refreshRevisionsBtn", "revisionList", "downloadLog",
+      ]) {
+        el[id] = document.getElementById(id);
+      }
 
-      const tokenInput = {
-        email: document.getElementById("oauthEmail"),
-        name: document.getElementById("oauthName"),
+      const apiBase = () => {
+        const raw = (el.apiBase.value || "").trim();
+        return raw || "http://localhost:3000";
       };
-      const gameNameInput = document.getElementById("gameName");
-      const savePathInput = document.getElementById("savePath");
-      const revisionChecksum = document.getElementById("revisionChecksum");
-      const revisionSize = document.getElementById("revisionSize");
-      const artifactData = document.getElementById("artifactData");
-      const resolveRevisionId = document.getElementById("resolveRevisionId");
 
-      const storedToken = localStorage.getItem("sync_save_access_token") || "";
-      const storedRefresh = localStorage.getItem("sync_save_refresh_token") || "";
-      if (storedToken) {
-        state.accessToken = storedToken;
-        state.refreshToken = storedRefresh;
-        syncAuthState();
-        refreshGames().finally(() => {});
+      const apiHeaders = (withAuth = false) => {
+        const headers = { "content-type": "application/json" };
+        if (withAuth && state.accessToken) {
+          headers.authorization = `Bearer ${state.accessToken}`;
+        }
+        return headers;
+      };
+
+      function setAuthState() {
+        el.authStatus.textContent = state.accessToken ? "로그인됨" : "로그아웃 상태";
+        el.authStatus.className = `status ${state.accessToken ? "ok" : "warn"}`;
+        el.logoutBtn.disabled = !state.accessToken;
+        el.refreshBtn.disabled = !state.refreshToken;
       }
 
-      function renderStatus(el, message, bad = false, good = false) {
-        el.textContent = message;
-        el.className = `status ${bad ? "bad" : good ? "good" : ""}`;
+      function setMessage(target, msg, isError = false) {
+        target.textContent = msg || "";
+        target.className = isError ? "muted" : "muted";
       }
 
-      function authHeader() {
-        return state.accessToken ? { Authorization: `Bearer ${state.accessToken}` } : {};
-      }
-
-      async function apiRequest(path, init = {}) {
-        const resp = await fetch(`${API}${path}`, {
-          ...init,
-          headers: {
-            "content-type": "application/json",
-            ...(init.headers || {}),
-            ...authHeader(),
-          },
+      async function request(path, options = {}, retry = true) {
+        const res = await fetch(`${apiBase()}${path}`, {
+          ...options,
+          headers: apiHeaders(options.withAuth),
         });
-        const text = await resp.text();
-        let body = {};
-        if (text) {
-          try {
-            body = JSON.parse(text);
-          } catch (_e) {
-            body = { error: text };
+
+        if (res.status === 401 && retry && state.refreshToken) {
+          const refreshed = await fetch(`${apiBase()}/auth/refresh`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ refreshToken: state.refreshToken }),
+          });
+
+          if (refreshed.ok) {
+            const data = await refreshed.json();
+            state.accessToken = data.accessToken;
+            state.refreshToken = data.refreshToken;
+            localStorage.setItem(KEYS.accessToken, state.accessToken);
+            localStorage.setItem(KEYS.refreshToken, state.refreshToken);
+            setAuthState();
+            return request(path, options, false);
           }
+          state.accessToken = null;
+          state.refreshToken = null;
+          localStorage.removeItem(KEYS.accessToken);
+          localStorage.removeItem(KEYS.refreshToken);
+          setAuthState();
         }
-        return { status: resp.status, body };
+
+        return res;
       }
 
-      function syncAuthState() {
-        const hasToken = Boolean(state.accessToken);
-        logoutButton.disabled = !hasToken;
-        if (!hasToken) {
-          authStatusEl.textContent = "미로그인";
-          authStatusEl.className = "status bad";
-          userSummaryEl.textContent = "-";
-          gameStatusEl.textContent = "로그인 필요";
-          renderStatus(opsStatusEl, "");
-          return;
-        }
-        authStatusEl.textContent = "인증 완료";
-        authStatusEl.className = "status good";
-      }
-
-      async function login(provider) {
-        const payload = {
-          providerUserId: `${provider}-${Date.now()}`,
-          email: tokenInput.email.value || `${provider}-${Date.now()}@example.com`,
-          name: tokenInput.name.value || "Player",
-        };
-
-        const { status, body } = await apiRequest(`/auth/oauth/${provider}`, {
-          method: "POST",
-          body: JSON.stringify(payload),
+      function readResponseSafe(res) {
+        return res.text().then((text) => {
+          if (!text) {
+            return {};
+          }
+          try {
+            return JSON.parse(text);
+          } catch (_error) {
+            return { raw: text };
+          }
         });
+      }
 
-        if (status !== 200) {
-          renderStatus(authStatusEl, `${provider} 로그인 실패: ${body.error || "unknown"}`, true);
+      async function loadProviders() {
+        const res = await request("/auth/providers");
+        const data = await readResponseSafe(res);
+        el.provider.innerHTML = "";
+        (data.providers || []).forEach((provider) => {
+          const option = document.createElement("option");
+          option.value = provider;
+          option.textContent = provider;
+          el.provider.appendChild(option);
+        });
+      }
+
+      async function loadGames() {
+        if (!state.accessToken) {
+          el.gameList.innerHTML = "";
+          return;
+        }
+        const res = await request("/games", { withAuth: true });
+        const data = await readResponseSafe(res);
+        if (!res.ok) {
+          setMessage(el.gameMessage, data.error || "게임 목록 조회 실패", true);
           return;
         }
 
-        state.accessToken = body.accessToken;
-        state.refreshToken = body.refreshToken;
-        localStorage.setItem("sync_save_access_token", body.accessToken);
-        localStorage.setItem("sync_save_refresh_token", body.refreshToken);
-        syncAuthState();
-        userSummaryEl.textContent = JSON.stringify(body.user, null, 2);
-        renderStatus(authStatusEl, "로그인 완료", false, true);
-        await refreshGames();
+        state.games = data.games || [];
+        renderGames();
       }
 
-      async function refreshMe() {
-        const { status, body } = await apiRequest("/me", { method: "GET" });
-        if (status !== 200) {
-          state.accessToken = "";
-          state.refreshToken = "";
-          localStorage.removeItem("sync_save_access_token");
-          localStorage.removeItem("sync_save_refresh_token");
-          syncAuthState();
-          return;
-        }
-        userSummaryEl.textContent = JSON.stringify(body.user, null, 2);
-      }
-
-      function encodeArtifactToBase64() {
-        if (!artifactData.value.trim()) {
-          return "";
-        }
-        return btoa(unescape(encodeURIComponent(artifactData.value)));
-      }
-
-      async function refreshGames() {
-        const { status, body } = await apiRequest("/games", { method: "GET" });
-        if (status !== 200) {
-          gameStatusEl.textContent = `게임 조회 실패: ${body.error || status}`;
-          gameStatusEl.className = "status bad";
-          return;
-        }
-
-        state.games = body.games || [];
-        gameListEl.innerHTML = "";
-        activeGameEl.innerHTML = "";
-
+      function renderGames() {
+        el.gameList.innerHTML = "";
         state.games.forEach((game) => {
           const li = document.createElement("li");
-          li.innerHTML = `<span><strong>${game.name}</strong><br/><span class=\"muted\">${game.savePath}</span></span><span class=\"chip\">ID ${game.id}</span>`;
-          gameListEl.appendChild(li);
+          li.className = "game-item";
+          if (state.selectedGame && state.selectedGame.id === game.id) {
+            li.classList.add("active");
+          }
+          li.innerHTML = `<b>${game.name}</b><div class=\"mono muted\">id: ${game.id} · path: ${game.savePath}</div>`;
+          li.onclick = () => selectGame(game);
+          el.gameList.appendChild(li);
+        });
+      }
 
-          const option = document.createElement("option");
-          option.value = String(game.id);
-          option.textContent = `${game.id} · ${game.name}`;
-          activeGameEl.appendChild(option);
+      function selectGame(game) {
+        state.selectedGame = game;
+        el.selectedLabel.textContent = `선택됨: ${game.name}`;
+        el.selectedLabel.className = "status ok";
+        el.selectedSummary.textContent = `gameId=${game.id}, savePath=${game.savePath}`;
+        renderGames();
+        loadRevisions();
+      }
+
+      async function loadRevisions() {
+        if (!state.selectedGame || !state.accessToken) {
+          el.revisionList.innerHTML = "";
+          return;
+        }
+
+        const res = await request(`/games/${state.selectedGame.id}/revisions`, { withAuth: true });
+        const data = await readResponseSafe(res);
+        if (!res.ok) {
+          setMessage(el.uploadMessage, data.error || "리비전 조회 실패", true);
+          return;
+        }
+
+        state.revisions = data.revisions || [];
+        renderRevisions();
+      }
+
+      function renderRevisions() {
+        el.revisionList.innerHTML = "";
+        state.revisions.forEach((revision) => {
+          const li = document.createElement("li");
+          li.className = "rev-item";
+          li.innerHTML = `
+            <div><strong>rev #${revision.id}</strong> · ${revision.createdAt}</div>
+            <div class=\"mono muted\">size ${revision.sizeBytes} · checksum ${revision.checksum}</div>
+          `;
+
+          const action = document.createElement("button");
+          action.className = "btn";
+          action.textContent = "다운로드 모의";
+          action.onclick = () => downloadRevision(revision.id);
+
+          li.appendChild(action);
+          el.revisionList.appendChild(li);
         });
 
-        if (!state.games.length) {
-          gameStatusEl.textContent = "게임이 없습니다. 게임을 먼저 등록하세요.";
-        } else {
-          gameStatusEl.textContent = `${state.games.length}개 게임`;
+        if (!state.revisions.length) {
+          const none = document.createElement("li");
+          none.textContent = "리비전이 없습니다.";
+          none.className = "muted";
+          el.revisionList.appendChild(none);
         }
-        gameStatusEl.className = "status good";
+      }
+
+      async function downloadRevision(revisionId) {
+        const res = await request(
+          `/games/${state.selectedGame.id}/revisions/${revisionId}/download`,
+          { method: "POST", withAuth: true }
+        );
+        const data = await readResponseSafe(res);
+        if (!res.ok) {
+          el.downloadLog.textContent = `다운로드 실패: ${data.error || "unknown"}`;
+          return;
+        }
+        el.downloadLog.textContent = `다운로드 준비됨: ${data.download.artifactPath}`;
+      }
+
+      async function login() {
+        const provider = el.provider.value;
+        const providerUserId = el.oauthId.value.trim() || `${provider}-user-${Date.now()}`;
+        const email = el.oauthEmail.value.trim() || `${provider}-user@local.test`;
+        const name = el.oauthName.value.trim() || "Player One";
+
+        const res = await request(`/auth/oauth/${provider}`, {
+          method: "POST",
+          headers: apiHeaders(),
+          body: JSON.stringify({ providerUserId, email, name }),
+        });
+        const data = await readResponseSafe(res);
+
+        if (!res.ok) {
+          setMessage(el.authStatus, data.error || "로그인 실패", true);
+          return;
+        }
+
+        state.accessToken = data.accessToken;
+        state.refreshToken = data.refreshToken;
+        localStorage.setItem(KEYS.accessToken, state.accessToken);
+        localStorage.setItem(KEYS.refreshToken, state.refreshToken);
+        setAuthState();
+        loadGames();
+        setMessage(el.gameMessage, `${data.user?.email} 로그인됨`);
+      }
+
+      function logout() {
+        state.accessToken = null;
+        state.refreshToken = null;
+        localStorage.removeItem(KEYS.accessToken);
+        localStorage.removeItem(KEYS.refreshToken);
+        setAuthState();
+        el.gameList.innerHTML = "";
+        el.revisionList.innerHTML = "";
+        state.selectedGame = null;
+        el.selectedLabel.textContent = "게임 선택 필요";
+        el.selectedLabel.className = "status warn";
+        el.selectedSummary.textContent = "게임을 클릭하면 상세 정보를 표시합니다.";
       }
 
       async function createGame() {
-        const name = gameNameInput.value.trim();
-        const savePath = savePathInput.value.trim();
-        if (!name || !savePath) {
-          renderStatus(gameStatusEl, "게임명/경로를 모두 입력하세요", true);
+        if (!state.accessToken) {
+          setMessage(el.gameMessage, "로그인 후 이용하세요.", true);
           return;
         }
-        const { status, body } = await apiRequest("/games", {
+
+        const name = el.gameName.value.trim();
+        const savePath = el.savePath.value.trim();
+        if (!name || !savePath) {
+          setMessage(el.gameMessage, "게임명과 저장경로를 모두 입력하세요.", true);
+          return;
+        }
+
+        const res = await request("/games", {
           method: "POST",
+          withAuth: true,
+          headers: apiHeaders(true),
           body: JSON.stringify({ name, savePath }),
         });
-        if (status !== 201) {
-          renderStatus(gameStatusEl, `등록 실패: ${body.error || status}`, true);
+        const data = await readResponseSafe(res);
+        if (!res.ok) {
+          setMessage(el.gameMessage, data.error || "게임 등록 실패", true);
           return;
         }
-        renderStatus(gameStatusEl, `등록됨: ${body.game.name}`, false, true);
-        gameNameInput.value = "";
-        savePathInput.value = "";
-        await refreshGames();
+
+        state.games.push(data.game);
+        renderGames();
+        setMessage(el.gameMessage, `등록 완료: #${data.game.id}`);
+        el.gameName.value = "";
+        el.savePath.value = "";
       }
 
-      function getActiveGameId() {
-        const gameId = Number(activeGameEl.value || 0);
-        if (!gameId) {
-          renderStatus(revisionStatusEl, "게임을 먼저 선택하세요", true);
-          return null;
-        }
-        return gameId;
-      }
-
-      async function uploadRevision() {
-        const gameId = getActiveGameId();
-        if (!gameId) {
+      async function uploadRevision(force = false) {
+        if (!state.selectedGame || !state.accessToken) {
+          setMessage(el.uploadMessage, "게임 선택/로그인이 필요합니다.", true);
           return;
         }
-        const checksum = revisionChecksum.value.trim();
-        const sizeBytes = Number(revisionSize.value);
+
         const body = {
-          checksum,
-          sizeBytes,
-          note: "web upload",
-          clientUpdatedAt: new Date().toISOString(),
+          checksum: el.checksum.value.trim(),
+          sizeBytes: Number(el.sizeBytes.value),
+          note: el.note.value.trim(),
         };
-        const artifactBase64 = encodeArtifactToBase64();
-        if (artifactBase64) {
-          body.artifactBase64 = artifactBase64;
-        }
 
-        const { status, body: resp } = await apiRequest(`/games/${gameId}/revisions`, {
+        const explicitTs = el.clientUpdatedAt.value.trim();
+        if (explicitTs) body.clientUpdatedAt = explicitTs;
+        if (force) body.clientUpdatedAt = new Date().toISOString();
+
+        const res = await request(`/games/${state.selectedGame.id}/revisions`, {
           method: "POST",
+          withAuth: true,
+          headers: apiHeaders(true),
           body: JSON.stringify(body),
         });
+        const data = await readResponseSafe(res);
 
-        if (status === 409) {
-          conflictZoneEl.hidden = false;
-          renderStatus(revisionStatusEl, `충돌 감지: ${resp.error}`, true);
-          resolveRevisionId.value = resp.latestRevision ? resp.latestRevision.id : "";
-          await refreshRevisions(gameId);
+        if (!res.ok) {
+          if (res.status === 409) {
+            setMessage(
+              el.uploadMessage,
+              `충돌 감지: 저장타임이 최신보다 과거입니다. 최신: ${data?.latestRevision?.createdAt || "-"}`,
+              true
+            );
+            return;
+          }
+          setMessage(el.uploadMessage, data.error || "업로드 실패", true);
           return;
         }
-        if (status !== 201) {
-          renderStatus(revisionStatusEl, `업로드 실패: ${resp.error || status}`, true);
-          return;
-        }
-        conflictZoneEl.hidden = true;
-        renderStatus(revisionStatusEl, `업로드 완료: rev ${resp.revision.id}`, false, true);
-        await refreshRevisions(gameId);
+
+        setMessage(el.uploadMessage, `리비전 업로드 완료: #${data.revision.id}`);
+        el.checksum.value = "";
+        el.sizeBytes.value = "";
+        el.clientUpdatedAt.value = "";
+        el.note.value = "";
+        loadRevisions();
       }
 
-      async function refreshRevisions(gameId = getActiveGameId()) {
-        if (!gameId) {
-          return;
-        }
-        const { status, body } = await apiRequest(`/games/${gameId}/revisions`, { method: "GET" });
-        if (status !== 200) {
-          revisionListEl.textContent = JSON.stringify(body, null, 2);
-          renderStatus(revisionStatusEl, "리비전 조회 실패", true);
-          return;
-        }
-        revisionListEl.textContent = JSON.stringify(body.revisions, null, 2);
-        renderStatus(revisionStatusEl, `${body.revisions.length}개 리비전`, false, true);
-      }
-
-      async function downloadLatest() {
-        const gameId = getActiveGameId();
-        if (!gameId) {
-          return;
-        }
-        const latestRes = await apiRequest(`/games/${gameId}/revisions/latest`, { method: "GET" });
-        if (latestRes.status !== 200) {
-          renderStatus(revisionStatusEl, `최신 리비전 없음: ${latestRes.body.error || latestRes.status}`, true);
-          return;
-        }
-        const id = latestRes.body.revision.id;
-        const download = await apiRequest(`/games/${gameId}/revisions/${id}/download`, { method: "POST" });
-        if (download.status !== 200) {
-          renderStatus(revisionStatusEl, `다운로드 실패: ${download.body.error || download.status}`, true);
-          return;
-        }
-        renderStatus(revisionStatusEl, `다운로드 준비: ${download.body.download.artifactPath}`, false, true);
-      }
-
-      async function resolveRevision() {
-        const gameId = getActiveGameId();
-        if (!gameId) {
-          return;
-        }
-        const revisionId = Number(resolveRevisionId.value || 0);
-        if (!revisionId) {
-          renderStatus(revisionStatusEl, "resolve 대상 리비전 ID를 입력하세요", true);
-          return;
-        }
-        const body = {
-          checksum: revisionChecksum.value.trim() || `sha256:resolve-${Date.now()}`,
-          sizeBytes: Number(revisionSize.value || 1),
-          note: "manual resolve",
-        };
-        const artifactBase64 = encodeArtifactToBase64();
-        if (artifactBase64) {
-          body.artifactBase64 = artifactBase64;
-        }
-        const { status, body: resp } = await apiRequest(`/games/${gameId}/revisions/${revisionId}/resolve`, {
-          method: "POST",
-          body: JSON.stringify(body),
-        });
-        if (status !== 201) {
-          renderStatus(revisionStatusEl, `resolve 실패: ${resp.error || status}`, true);
-          return;
-        }
-        renderStatus(revisionStatusEl, `resolve 완료: rev ${resp.revision.id}`, false, true);
-        conflictZoneEl.hidden = true;
-        await refreshRevisions(gameId);
-      }
-
-      async function refreshTokens() {
+      async function forceRefreshTokens() {
         if (!state.refreshToken) {
-          renderStatus(opsStatusEl, "refresh token 없음", true);
           return;
         }
-        const { status, body } = await apiRequest("/auth/refresh", {
+
+        const res = await request("/auth/refresh", {
           method: "POST",
+          headers: apiHeaders(),
           body: JSON.stringify({ refreshToken: state.refreshToken }),
-        });
-        if (status !== 200) {
-          renderStatus(opsStatusEl, `refresh 실패: ${body.error || status}`, true);
+        }, false);
+        const data = await readResponseSafe(res);
+        if (!res.ok) {
+          setMessage(el.uploadMessage, data.error || "토큰 갱신 실패", true);
+          logout();
           return;
         }
-        state.accessToken = body.accessToken;
-        state.refreshToken = body.refreshToken;
-        localStorage.setItem("sync_save_access_token", body.accessToken);
-        localStorage.setItem("sync_save_refresh_token", body.refreshToken);
-        syncAuthState();
-        renderStatus(opsStatusEl, "토큰 갱신 완료", false, true);
+        state.accessToken = data.accessToken;
+        state.refreshToken = data.refreshToken;
+        localStorage.setItem(KEYS.accessToken, state.accessToken);
+        localStorage.setItem(KEYS.refreshToken, state.refreshToken);
+        setAuthState();
       }
 
-      async function logout() {
-        const { status } = await apiRequest("/auth/logout", { method: "POST", body: JSON.stringify({}) });
-        if (status !== 204 && status !== 200) {
-          renderStatus(opsStatusEl, `로그아웃 실패: ${status}`, true);
-          return;
+      function bootstrap() {
+        const savedAccess = localStorage.getItem(KEYS.accessToken);
+        const savedRefresh = localStorage.getItem(KEYS.refreshToken);
+        if (savedAccess) {
+          state.accessToken = savedAccess;
         }
-        state.accessToken = "";
-        state.refreshToken = "";
-        localStorage.removeItem("sync_save_access_token");
-        localStorage.removeItem("sync_save_refresh_token");
-        syncAuthState();
-        renderStatus(opsStatusEl, "로그아웃 완료", false, true);
+        if (savedRefresh) {
+          state.refreshToken = savedRefresh;
+        }
+
+        setAuthState();
+        loadProviders();
+        if (state.accessToken) {
+          loadGames();
+        }
       }
 
-      async function deleteAccount() {
-        if (!confirm("정말 계정을 삭제하시겠습니까?")) {
-          return;
-        }
-        const { status } = await apiRequest("/me", { method: "DELETE", body: JSON.stringify({}) });
-        if (status !== 204) {
-          renderStatus(opsStatusEl, `삭제 실패: ${status}`, true);
-          return;
-        }
-        state.accessToken = "";
-        state.refreshToken = "";
-        localStorage.removeItem("sync_save_access_token");
-        localStorage.removeItem("sync_save_refresh_token");
-        syncAuthState();
-        renderStatus(opsStatusEl, "계정 탈퇴 처리됨", false, true);
-      }
+      el.oauthLoginBtn.onclick = login;
+      el.logoutBtn.onclick = logout;
+      el.createGameBtn.onclick = createGame;
+      el.refreshRevisionsBtn.onclick = loadRevisions;
+      el.uploadRevisionBtn.onclick = () => uploadRevision(false);
+      el.forceUploadBtn.onclick = () => uploadRevision(true);
+      el.refreshBtn.onclick = forceRefreshTokens;
 
-      document.querySelectorAll('[data-provider]').forEach((button) => {
-        button.addEventListener("click", () => login(button.dataset.provider));
-      });
-      document.getElementById("createGame").addEventListener("click", createGame);
-      document.getElementById("refreshGames").addEventListener("click", refreshGames);
-      document.getElementById("uploadRevision").addEventListener("click", uploadRevision);
-      document.getElementById("refreshRevisions").addEventListener("click", refreshRevisions);
-      document.getElementById("downloadLatest").addEventListener("click", downloadLatest);
-      document.getElementById("resolveRevision").addEventListener("click", resolveRevision);
-      document.getElementById("refreshToken").addEventListener("click", refreshTokens);
-      document.getElementById("logoutButton").addEventListener("click", logout);
-      document.getElementById("deleteAccount").addEventListener("click", deleteAccount);
-
-      syncAuthState();
-      gameNameInput.value = "Stardew Valley";
-      savePathInput.value = "/saves/stardew";
+      bootstrap();
     </script>
   </body>
 </html>

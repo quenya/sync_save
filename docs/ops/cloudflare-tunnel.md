@@ -20,6 +20,18 @@
 CLOUDFLARE_TUNNEL_TOKEN=replace_me
 ```
 
+When rotating tokens:
+
+1. Issue a new token in Cloudflare Zero Trust dashboard.
+2. Update `.env` and restart tunnel:
+
+```bash
+docker compose -f /opt/sync_save/docker-compose.prod.yml restart cloudflared
+```
+
+3. Remove old token from Cloudflare dashboard history.
+4. Verify both hostnames.
+
 ## 3) OAuth Redirect URIs
 
 - Google:
@@ -50,8 +62,21 @@ docker compose -f docker-compose.prod.yml ps
 docker compose -f docker-compose.prod.yml logs -f cloudflared
 ```
 
+Optional route checks:
+
+```bash
+curl -I https://app.example.com/
+curl -I https://api.example.com/health
+```
+
 ## 5) Security Notes
 
 - Keep SSH key-based auth only.
 - Do not expose API/Web ports directly on router.
 - Restrict Mac mini sleep mode to avoid deployment failures.
+
+Recommended controls:
+
+- Rotate tunnel token on team change.
+- Keep OAuth redirect URIs aligned to HTTPS production hostnames.
+- Use SSH allow list and disable password login.
