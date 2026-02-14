@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>sync_save</title>
+    <style>
+      :root {
+        --bg: #f3f7fb;
+        --text: #0f172a;
+        --card: #ffffff;
+        --line: #d6deea;
+        --accent: #0a7ea4;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 24px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+        color: var(--text);
+      }
+      .container {
+        max-width: 880px;
+        margin: 0 auto;
+        display: grid;
+        gap: 16px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 18px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+      }
+      p {
+        margin: 0;
+        color: #334155;
+      }
+      .pill {
+        display: inline-block;
+        margin-top: 8px;
+        border-radius: 999px;
+        border: 1px solid #bae6fd;
+        color: var(--accent);
+        padding: 6px 10px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      @media (max-width: 640px) {
+        body {
+          padding: 12px;
+        }
+        h1 {
+          font-size: 22px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <section class="card">
+        <h1>sync_save web</h1>
+        <p>Cloudflare Tunnel + Docker CI/CD 기본 배포가 구성되었습니다.</p>
+        <span class="pill">Responsive UI placeholder</span>
+      </section>
+    </main>
+  </body>
+</html>
