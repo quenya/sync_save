@@ -10,11 +10,13 @@ function createStore() {
     users: [],
     socialAccounts: [],
     games: [],
+    revisions: [],
     sessions: [],
     nextIds: {
       user: 1,
       social: 1,
       game: 1,
+      revision: 1,
     },
   };
 }
@@ -133,16 +135,17 @@ function upsertOAuthUser(store, provider, providerUserId, email, name) {
   );
 
   if (linkedSocial) {
-    const existingUser = store.users.find((item) => item.id === linkedSocial.userId && !item.deletedAt);
+    const existingUser = store.users.find((item) => item.id === linkedSocial.userId);
     if (existingUser) {
       existingUser.email = email;
       existingUser.name = name;
+      existingUser.deletedAt = null;
       existingUser.updatedAt = nowIso();
       return existingUser;
     }
   }
 
-  const existingByEmail = store.users.find((item) => item.email === email && !item.deletedAt);
+  const existingByEmail = store.users.find((item) => item.email === email);
   if (existingByEmail) {
     const hasProviderLinked = store.socialAccounts.some(
       (item) => item.userId === existingByEmail.id && item.provider === provider,
@@ -201,6 +204,22 @@ function parseGameId(pathname) {
   return Number(match[1]);
 }
 
+function parseGameRevisionPath(pathname) {
+  const match = pathname.match(/^\/games\/(\d+)\/revisions(?:\/(latest|(\d+)\/download))?$/);
+  if (!match) {
+    return null;
+  }
+
+  const gameId = Number(match[1]);
+  if (!match[2]) {
+    return { gameId, route: "list" };
+  }
+  if (match[2] === "latest") {
+    return { gameId, route: "latest" };
+  }
+  return { gameId, route: "download", revisionId: Number(match[3]) };
+}
+
 function assertUserOwnsGame(res, authUser, game) {
   if (!game) {
     json(res, 404, { error: "not_found" });
@@ -211,6 +230,14 @@ function assertUserOwnsGame(res, authUser, game) {
     return false;
   }
   return true;
+}
+
+function getLatestRevision(store, gameId) {
+  const gameRevisions = store.revisions
+    .filter((item) => item.gameId === gameId)
+    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+
+  return gameRevisions[0] || null;
 }
 
 function createApp(store = createStore()) {
@@ -285,6 +312,7 @@ function createApp(store = createStore()) {
         store.sessions = store.sessions.filter((session) => session.userId !== authUser.id);
         store.games = store.games.filter((game) => game.userId !== authUser.id);
         store.socialAccounts = store.socialAccounts.filter((sa) => sa.userId !== authUser.id);
+        store.revisions = store.revisions.filter((revision) => revision.userId !== authUser.id);
 
         return json(res, 204, {});
       }
@@ -332,6 +360,91 @@ function createApp(store = createStore()) {
         };
         store.games.push(game);
         return json(res, 201, { game });
+      }
+
+      const revisionPath = parseGameRevisionPath(url.pathname);
+      if (revisionPath) {
+        const authUser = requireAuth(store, req, res);
+        if (!authUser) {
+          return;
+        }
+
+        const game = store.games.find((item) => item.id === revisionPath.gameId);
+        if (!assertUserOwnsGame(res, authUser, game)) {
+          return;
+        }
+
+        if (method === "GET" && revisionPath.route === "list") {
+          const revisions = store.revisions
+            .filter((item) => item.gameId === game.id)
+            .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+          return json(res, 200, { revisions });
+        }
+
+        if (method === "GET" && revisionPath.route === "latest") {
+          const latest = getLatestRevision(store, game.id);
+          if (!latest) {
+            return json(res, 404, { error: "no_revision" });
+          }
+          return json(res, 200, { revision: latest });
+        }
+
+        if (method === "POST" && revisionPath.route === "list") {
+          const body = await parseJsonBody(req);
+          const checksum = String(body.checksum || "").trim();
+          const sizeBytes = Number(body.sizeBytes || 0);
+          const clientUpdatedAt = body.clientUpdatedAt ? String(body.clientUpdatedAt).trim() : null;
+          const clientUpdatedAtMs = clientUpdatedAt ? Date.parse(clientUpdatedAt) : null;
+
+          if (clientUpdatedAt && !Number.isFinite(clientUpdatedAtMs)) {
+            return json(res, 400, { error: "invalid_client_updated_at" });
+          }
+
+          if (!checksum || !Number.isFinite(sizeBytes) || sizeBytes <= 0) {
+            return json(res, 400, { error: "checksum and positive sizeBytes are required" });
+          }
+
+          const latest = getLatestRevision(store, game.id);
+          if (latest && clientUpdatedAt && clientUpdatedAtMs < Date.parse(latest.createdAt)) {
+            return json(res, 409, {
+              error: "revision_conflict",
+              latestRevision: latest,
+              message: "Upload is older than latest server revision",
+            });
+          }
+
+          const revision = {
+            id: store.nextIds.revision++,
+            gameId: game.id,
+            userId: authUser.id,
+            checksum,
+            sizeBytes,
+            note: String(body.note || "").trim(),
+            createdAt: nowIso(),
+          };
+
+          store.revisions.push(revision);
+          return json(res, 201, { revision });
+        }
+
+        if (method === "POST" && revisionPath.route === "download") {
+          const revision = store.revisions.find(
+            (item) => item.id === revisionPath.revisionId && item.gameId === game.id,
+          );
+          if (!revision) {
+            return json(res, 404, { error: "not_found" });
+          }
+
+          return json(res, 200, {
+            revision,
+            download: {
+              mode: "mock",
+              artifactPath: `/mock-storage/users/${authUser.id}/games/${game.id}/revisions/${revision.id}.zip`,
+            },
+          });
+        }
+
+        return json(res, 404, { error: "not_found" });
       }
 
       if (method === "GET" && parseGameId(url.pathname)) {

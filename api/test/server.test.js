@@ -29,21 +29,25 @@ async function oauthLogin(baseUrl, provider, suffix, email = null) {
   return res.json();
 }
 
+async function createGame(baseUrl, accessToken, name = "Stardew Valley") {
+  const createRes = await fetch(`${baseUrl}/games`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ name, savePath: `/saves/${name.toLowerCase().replace(/\s+/g, "-")}` }),
+  });
+  assert.equal(createRes.status, 201);
+  return (await createRes.json()).game;
+}
+
 test("oauth login + account scoped games API", async () => {
   await withServer(async (baseUrl) => {
     const googleLogin = await oauthLogin(baseUrl, "google", "a");
     const facebookLogin = await oauthLogin(baseUrl, "facebook", "b");
 
-    const createForGoogle = await fetch(`${baseUrl}/games`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${googleLogin.accessToken}`,
-      },
-      body: JSON.stringify({ name: "Stardew Valley", savePath: "/saves/stardew" }),
-    });
-
-    assert.equal(createForGoogle.status, 201);
+    await createGame(baseUrl, googleLogin.accessToken);
 
     const googleGamesRes = await fetch(`${baseUrl}/games`, {
       headers: { authorization: `Bearer ${googleLogin.accessToken}` },
@@ -92,17 +96,9 @@ test("cannot access another user's game by id", async () => {
     const googleLogin = await oauthLogin(baseUrl, "google", "owner");
     const facebookLogin = await oauthLogin(baseUrl, "facebook", "other");
 
-    const createRes = await fetch(`${baseUrl}/games`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${googleLogin.accessToken}`,
-      },
-      body: JSON.stringify({ name: "Hades", savePath: "/saves/hades" }),
-    });
-    const createBody = await createRes.json();
+    const game = await createGame(baseUrl, googleLogin.accessToken, "Hades");
 
-    const accessOtherGameRes = await fetch(`${baseUrl}/games/${createBody.game.id}`, {
+    const accessOtherGameRes = await fetch(`${baseUrl}/games/${game.id}`, {
       headers: { authorization: `Bearer ${facebookLogin.accessToken}` },
     });
 
@@ -131,15 +127,7 @@ test("delete account revokes tokens and removes data", async () => {
   await withServer(async (baseUrl) => {
     const login = await oauthLogin(baseUrl, "google", "delete-me");
 
-    const createRes = await fetch(`${baseUrl}/games`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${login.accessToken}`,
-      },
-      body: JSON.stringify({ name: "Celeste", savePath: "/saves/celeste" }),
-    });
-    assert.equal(createRes.status, 201);
+    await createGame(baseUrl, login.accessToken, "Celeste");
 
     const deleteRes = await fetch(`${baseUrl}/me`, {
       method: "DELETE",
@@ -151,5 +139,125 @@ test("delete account revokes tokens and removes data", async () => {
       headers: { authorization: `Bearer ${login.accessToken}` },
     });
     assert.equal(meRes.status, 401);
+  });
+});
+
+test("upload/list/latest/download revision flow", async () => {
+  await withServer(async (baseUrl) => {
+    const login = await oauthLogin(baseUrl, "google", "sync-flow");
+    const game = await createGame(baseUrl, login.accessToken, "Slay The Spire");
+
+    const uploadRes = await fetch(`${baseUrl}/games/${game.id}/revisions`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${login.accessToken}`,
+      },
+      body: JSON.stringify({ checksum: "sha256:aaa", sizeBytes: 1024, note: "first" }),
+    });
+
+    assert.equal(uploadRes.status, 201);
+    const uploaded = await uploadRes.json();
+
+    const listRes = await fetch(`${baseUrl}/games/${game.id}/revisions`, {
+      headers: { authorization: `Bearer ${login.accessToken}` },
+    });
+    assert.equal(listRes.status, 200);
+    const listBody = await listRes.json();
+    assert.equal(listBody.revisions.length, 1);
+
+    const latestRes = await fetch(`${baseUrl}/games/${game.id}/revisions/latest`, {
+      headers: { authorization: `Bearer ${login.accessToken}` },
+    });
+    assert.equal(latestRes.status, 200);
+
+    const downloadRes = await fetch(`${baseUrl}/games/${game.id}/revisions/${uploaded.revision.id}/download`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${login.accessToken}` },
+    });
+
+    assert.equal(downloadRes.status, 200);
+    const downloadBody = await downloadRes.json();
+    assert.match(downloadBody.download.artifactPath, /mock-storage/);
+  });
+});
+
+test("returns conflict when client uploads stale revision", async () => {
+  await withServer(async (baseUrl) => {
+    const login = await oauthLogin(baseUrl, "google", "conflict");
+    const game = await createGame(baseUrl, login.accessToken, "Dead Cells");
+
+    const firstUploadRes = await fetch(`${baseUrl}/games/${game.id}/revisions`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${login.accessToken}`,
+      },
+      body: JSON.stringify({ checksum: "sha256:first", sizeBytes: 100 }),
+    });
+    assert.equal(firstUploadRes.status, 201);
+
+    const staleTime = "2000-01-01T00:00:00.000Z";
+    const staleUploadRes = await fetch(`${baseUrl}/games/${game.id}/revisions`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${login.accessToken}`,
+      },
+      body: JSON.stringify({
+        checksum: "sha256:stale",
+        sizeBytes: 101,
+        clientUpdatedAt: staleTime,
+      }),
+    });
+
+    assert.equal(staleUploadRes.status, 409);
+    const staleBody = await staleUploadRes.json();
+    assert.equal(staleBody.error, "revision_conflict");
+  });
+});
+
+test("rejects invalid clientUpdatedAt for revision upload", async () => {
+  await withServer(async (baseUrl) => {
+    const login = await oauthLogin(baseUrl, "google", "invalid-ts");
+    const game = await createGame(baseUrl, login.accessToken, "Terraria");
+
+    const uploadRes = await fetch(`${baseUrl}/games/${game.id}/revisions`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${login.accessToken}`,
+      },
+      body: JSON.stringify({
+        checksum: "sha256:invalid-ts",
+        sizeBytes: 100,
+        clientUpdatedAt: "not-a-timestamp",
+      }),
+    });
+
+    assert.equal(uploadRes.status, 400);
+    const body = await uploadRes.json();
+    assert.equal(body.error, "invalid_client_updated_at");
+  });
+});
+
+test("reviving soft-deleted user by same provider id reuses linked account", async () => {
+  await withServer(async (baseUrl) => {
+    const firstLogin = await oauthLogin(baseUrl, "google", "revive");
+    const deleteRes = await fetch(`${baseUrl}/me`, {
+      method: "DELETE",
+      headers: { authorization: `Bearer ${firstLogin.accessToken}` },
+    });
+    assert.equal(deleteRes.status, 204);
+
+    const secondLogin = await oauthLogin(baseUrl, "google", "revive");
+    assert.equal(secondLogin.user.id, firstLogin.user.id);
+
+    const refreshRes = await fetch(`${baseUrl}/auth/refresh`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ refreshToken: secondLogin.refreshToken }),
+    });
+    assert.equal(refreshRes.status, 200);
   });
 });

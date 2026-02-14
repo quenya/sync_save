@@ -1,4 +1,4 @@
-# Week1 API Spec (OAuth + Account Isolation + Game Registration)
+# Week1~3 API Spec (OAuth + Account Isolation + Save Revision Sync)
 
 ## Auth
 
@@ -81,3 +81,42 @@ Responses:
 - `200`: owner can fetch game details.
 - `403`: authenticated user is not the owner.
 - `404`: game ID not found.
+
+## Save Revision Sync (user scoped)
+
+### `POST /games/:id/revisions`
+Upload revision metadata.
+
+Request body:
+
+```json
+{
+  "checksum": "sha256:abcd",
+  "sizeBytes": 2048,
+  "clientUpdatedAt": "2026-01-01T00:00:00.000Z",
+  "note": "manual backup"
+}
+```
+
+Responses:
+- `201`: revision accepted.
+- `409`: `revision_conflict` when `clientUpdatedAt` is older than latest server revision.
+
+### `GET /games/:id/revisions`
+Returns revision history in descending order (latest first).
+
+### `GET /games/:id/revisions/latest`
+Returns latest revision.
+
+### `POST /games/:id/revisions/:revisionId/download`
+Returns mock download metadata.
+
+```json
+{
+  "revision": { "id": 10 },
+  "download": {
+    "mode": "mock",
+    "artifactPath": "/mock-storage/users/1/games/2/revisions/10.zip"
+  }
+}
+```
