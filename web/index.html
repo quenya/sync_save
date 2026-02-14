@@ -12,9 +12,7 @@
         --line: #d6deea;
         --accent: #0a7ea4;
       }
-      * {
-        box-sizing: border-box;
-      }
+      * { box-sizing: border-box; }
       body {
         margin: 0;
         padding: 24px;
@@ -22,26 +20,21 @@
         background: linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
         color: var(--text);
       }
-      .container {
-        max-width: 880px;
-        margin: 0 auto;
-        display: grid;
-        gap: 16px;
-      }
-      .card {
-        background: var(--card);
+      .container { max-width: 880px; margin: 0 auto; display: grid; gap: 16px; }
+      .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+      h1 { margin: 0 0 8px; font-size: 28px; }
+      h2 { margin: 0 0 12px; font-size: 18px; }
+      p { margin: 0; color: #334155; }
+      .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+      .btn {
+        border-radius: 10px;
         border: 1px solid var(--line);
-        border-radius: 12px;
-        padding: 18px;
+        padding: 10px 14px;
+        background: #fff;
+        font-weight: 600;
       }
-      h1 {
-        margin: 0 0 8px;
-        font-size: 28px;
-      }
-      p {
-        margin: 0;
-        color: #334155;
-      }
+      .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+      .list { margin: 0; padding-left: 18px; color: #334155; }
       .pill {
         display: inline-block;
         margin-top: 8px;
@@ -53,12 +46,8 @@
         font-weight: 600;
       }
       @media (max-width: 640px) {
-        body {
-          padding: 12px;
-        }
-        h1 {
-          font-size: 22px;
-        }
+        body { padding: 12px; }
+        h1 { font-size: 22px; }
       }
     </style>
   </head>
@@ -66,8 +55,21 @@
     <main class="container">
       <section class="card">
         <h1>sync_save web</h1>
-        <p>Cloudflare Tunnel + Docker CI/CD 기본 배포가 구성되었습니다.</p>
-        <span class="pill">Responsive UI placeholder</span>
+        <p>Week1 MVP: OAuth 로그인 시작 + 계정별 게임 저장소 분리</p>
+        <div class="row">
+          <button class="btn primary">Google로 로그인</button>
+          <button class="btn">Facebook으로 로그인</button>
+        </div>
+        <span class="pill">Responsive UI MVP</span>
+      </section>
+
+      <section class="card">
+        <h2>다음 구현 항목</h2>
+        <ul class="list">
+          <li>게임 등록 API 연결</li>
+          <li>업로드/다운로드 작업 버튼</li>
+          <li>리비전 이력 및 충돌 처리 화면</li>
+        </ul>
       </section>
     </main>
   </body>
