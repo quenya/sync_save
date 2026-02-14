@@ -261,3 +261,85 @@ test("reviving soft-deleted user by same provider id reuses linked account", asy
     assert.equal(refreshRes.status, 200);
   });
 });
+
+test("game savePath is normalized to per-user namespace", async () => {
+  await withServer(async (baseUrl) => {
+    const login = await oauthLogin(baseUrl, "google", "ns");
+    const game = await createGame(baseUrl, login.accessToken, "Minecraft");
+    assert.match(game.savePath, new RegExp(`^/users/${login.user.id}/`));
+  });
+});
+
+test("revision upload accepts mock artifact and creates artifactPath", async () => {
+  await withServer(async (baseUrl) => {
+    const login = await oauthLogin(baseUrl, "google", "artifact");
+    const game = await createGame(baseUrl, login.accessToken, "Factorio");
+    const payload = {
+      checksum: "sha256:forced",
+      sizeBytes: 13,
+      artifactBase64: Buffer.from("hello sync_save").toString("base64"),
+      note: "artifact-backed",
+    };
+    const uploadRes = await fetch(`${baseUrl}/games/${game.id}/revisions`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${login.accessToken}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    assert.equal(uploadRes.status, 201);
+    const body = await uploadRes.json();
+    assert.match(body.revision.artifactPath, /mock-storage/);
+  });
+});
+
+test("revision conflict can be resolved manually", async () => {
+  await withServer(async (baseUrl) => {
+    const login = await oauthLogin(baseUrl, "google", "manual");
+    const game = await createGame(baseUrl, login.accessToken, "Noita");
+    const firstRes = await fetch(`${baseUrl}/games/${game.id}/revisions`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${login.accessToken}`,
+      },
+      body: JSON.stringify({
+        checksum: "sha256:first",
+        sizeBytes: 20,
+      }),
+    });
+    assert.equal(firstRes.status, 201);
+    const firstBody = await firstRes.json();
+
+    const conflictRes = await fetch(`${baseUrl}/games/${game.id}/revisions`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${login.accessToken}`,
+      },
+      body: JSON.stringify({
+        checksum: "sha256:stale",
+        sizeBytes: 21,
+        clientUpdatedAt: "2020-01-01T00:00:00.000Z",
+      }),
+    });
+    assert.equal(conflictRes.status, 409);
+
+    const resolveRes = await fetch(`${baseUrl}/games/${game.id}/revisions/${firstBody.revision.id}/resolve`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${login.accessToken}`,
+      },
+      body: JSON.stringify({
+        checksum: "sha256:resolved",
+        sizeBytes: 21,
+      }),
+    });
+    assert.equal(resolveRes.status, 201);
+    const resolveBody = await resolveRes.json();
+    assert.equal(resolveBody.resolvedFrom, firstBody.revision.id);
+  });
+});

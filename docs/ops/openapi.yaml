@@ -1,0 +1,200 @@
+openapi: 3.1.0
+info:
+  title: sync_save API
+  version: 0.2.0
+  description: Web Codex MVP API for account isolation and save revision sync.
+servers:
+  - url: http://localhost:3000
+    description: local
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: ok
+  /auth/oauth/{provider}:
+    post:
+      summary: Mock OAuth login
+      parameters:
+        - in: path
+          name: provider
+          required: true
+          schema:
+            type: string
+            enum: [google, facebook]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [providerUserId, email, name]
+              properties:
+                providerUserId:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                name:
+                  type: string
+      responses:
+        '200':
+          description: token issued
+  /auth/refresh:
+    post:
+      summary: Rotate access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+      responses:
+        '200':
+          description: token renewed
+        '401':
+          description: invalid_refresh_token
+  /auth/logout:
+    post:
+      summary: Logout current user session
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: session revoked
+  /me:
+    get:
+      summary: Get current user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: current user
+    delete:
+      summary: Soft delete account
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: account deleted
+  /games:
+    get:
+      summary: List user's games
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: user scoped games
+    post:
+      summary: Register game and save path
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, savePath]
+      responses:
+        '201':
+          description: created
+  /games/{id}:
+    get:
+      summary: Get game
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: found
+        '403':
+          description: forbidden
+        '404':
+          description: not found
+  /games/{id}/revisions:
+    get:
+      summary: List game revisions
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: revision list
+    post:
+      summary: Upload revision metadata + optional mock compressed artifact
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [checksum, sizeBytes]
+              properties:
+                checksum:
+                  type: string
+                sizeBytes:
+                  type: integer
+                note:
+                  type: string
+                clientUpdatedAt:
+                  type: string
+                  format: date-time
+                artifactBase64:
+                  type: string
+      responses:
+        '201':
+          description: created
+        '400':
+          description: invalid payload
+        '409':
+          description: revision_conflict
+  /games/{id}/revisions/latest:
+    get:
+      summary: Latest revision
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: latest revision
+        '404':
+          description: no_revision
+  /games/{id}/revisions/{revisionId}/download:
+    post:
+      summary: Resolve mock download metadata
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: mock download payload
+  /games/{id}/revisions/{revisionId}/resolve:
+    post:
+      summary: Manual conflict resolve
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: resolved revision
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: token

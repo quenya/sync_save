@@ -1,9 +1,13 @@
+const fs = require("fs");
+const path = require("path");
 const http = require("http");
 const crypto = require("crypto");
+const zlib = require("zlib");
 
 const TOKEN_TTL_MS = 1000 * 60 * 15;
 const REFRESH_TTL_MS = 1000 * 60 * 60 * 24 * 14;
 const OAUTH_PROVIDERS = new Set(["google", "facebook"]);
+const STORAGE_ROOT = path.join(process.cwd(), process.env.MOCK_STORAGE_PATH || "mock-storage");
 
 function createStore() {
   return {
@@ -54,6 +58,10 @@ function createToken() {
   return crypto.randomBytes(24).toString("hex");
 }
 
+function hashBytes(bytes) {
+  return `sha256:${crypto.createHash("sha256").update(bytes).digest("hex")}`;
+}
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -66,6 +74,22 @@ function sanitizeUser(user) {
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };
+}
+
+function normalizeSavePath(userId, savePath) {
+  const cleaned = `/${String(savePath || "").trim().replace(/^\//, "")}`;
+  const namespace = `/users/${userId}/saves`;
+  if (!cleaned || cleaned === "/") {
+    return `${namespace}/${crypto.randomBytes(6).toString("hex")}`;
+  }
+  if (cleaned.startsWith(`/users/${userId}/`)) {
+    return cleaned;
+  }
+  return `${namespace}${cleaned}`;
+}
+
+function ensureRevisionPath(userId, gameId, revisionId) {
+  return path.join(STORAGE_ROOT, `users/${userId}/games/${gameId}/revisions`, `${revisionId}.zip`);
 }
 
 function issueSession(store, userId) {
@@ -205,7 +229,7 @@ function parseGameId(pathname) {
 }
 
 function parseGameRevisionPath(pathname) {
-  const match = pathname.match(/^\/games\/(\d+)\/revisions(?:\/(latest|(\d+)\/download))?$/);
+  const match = pathname.match(/^\/games\/(\d+)\/revisions(?:\/(latest|(\d+)\/(download|resolve)))?$/);
   if (!match) {
     return null;
   }
@@ -217,7 +241,7 @@ function parseGameRevisionPath(pathname) {
   if (match[2] === "latest") {
     return { gameId, route: "latest" };
   }
-  return { gameId, route: "download", revisionId: Number(match[3]) };
+  return { gameId, route: match[4], revisionId: Number(match[3]) };
 }
 
 function assertUserOwnsGame(res, authUser, game) {
@@ -232,12 +256,72 @@ function assertUserOwnsGame(res, authUser, game) {
   return true;
 }
 
+function assertRevisionBelongsToGame(store, gameId, revisionId) {
+  const revision = store.revisions.find(
+    (item) => item.id === revisionId && item.gameId === gameId,
+  );
+  return revision || null;
+}
+
 function getLatestRevision(store, gameId) {
   const gameRevisions = store.revisions
     .filter((item) => item.gameId === gameId)
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 
   return gameRevisions[0] || null;
+}
+
+function withStorageDir(authUserId, gameId, fn) {
+  const root = path.join(STORAGE_ROOT, `users/${authUserId}/games/${gameId}`);
+  fs.mkdirSync(root, { recursive: true });
+  return fn(root);
+}
+
+function createRevisionRecord(store, authUser, game, revisionPayload) {
+  const revision = {
+    id: store.nextIds.revision++,
+    userId: authUser.id,
+    gameId: game.id,
+    checksum: revisionPayload.checksum,
+    sizeBytes: revisionPayload.sizeBytes,
+    note: revisionPayload.note,
+    createdAt: nowIso(),
+    updatedAt: revisionPayload.updatedAt || nowIso(),
+    clientUpdatedAt: revisionPayload.clientUpdatedAt || null,
+    artifactPath: revisionPayload.artifactPath || null,
+    conflictResolvedFrom: revisionPayload.conflictResolvedFrom || null,
+  };
+  store.revisions.push(revision);
+  return revision;
+}
+
+function parseArtifact(payload) {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const raw = payload.artifactBase64 || "";
+  if (!raw) {
+    return null;
+  }
+
+  let decoded;
+  try {
+    decoded = Buffer.from(raw, "base64");
+  } catch (_err) {
+    return { error: "invalid_base64" };
+  }
+
+  if (!decoded.length) {
+    return { error: "artifact must not be empty" };
+  }
+
+  return {
+    bytes: decoded,
+    checksum: payload.checksum ? String(payload.checksum).trim() : hashBytes(decoded),
+    sizeBytes: Number(payload.sizeBytes || decoded.length),
+    compressed: zlib.gzipSync(decoded),
+  };
 }
 
 function createApp(store = createStore()) {
@@ -247,7 +331,11 @@ function createApp(store = createStore()) {
       const url = new URL(req.url || "/", "http://localhost");
 
       if (method === "GET" && url.pathname === "/health") {
-        return json(res, 200, { status: "ok", service: "api" });
+        return json(res, 200, {
+          status: "ok",
+          service: "api",
+          storageRoot: STORAGE_ROOT,
+        });
       }
 
       if (method === "GET" && url.pathname === "/auth/providers") {
@@ -344,12 +432,13 @@ function createApp(store = createStore()) {
 
         const body = await parseJsonBody(req);
         const name = String(body.name || "").trim();
-        const savePath = String(body.savePath || "").trim();
+        const requestedSavePath = String(body.savePath || "").trim();
 
-        if (!name || !savePath) {
+        if (!name || !requestedSavePath) {
           return json(res, 400, { error: "name and savePath are required" });
         }
 
+        const savePath = normalizeSavePath(authUser.id, requestedSavePath);
         const game = {
           id: store.nextIds.game++,
           userId: authUser.id,
@@ -359,6 +448,8 @@ function createApp(store = createStore()) {
           updatedAt: nowIso(),
         };
         store.games.push(game);
+
+        withStorageDir(authUser.id, game.id, () => {});
         return json(res, 201, { game });
       }
 
@@ -378,7 +469,10 @@ function createApp(store = createStore()) {
           const revisions = store.revisions
             .filter((item) => item.gameId === game.id)
             .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
-          return json(res, 200, { revisions });
+          return json(res, 200, {
+            revisions,
+            savePath: game.savePath,
+          });
         }
 
         if (method === "GET" && revisionPath.route === "latest") {
@@ -391,14 +485,21 @@ function createApp(store = createStore()) {
 
         if (method === "POST" && revisionPath.route === "list") {
           const body = await parseJsonBody(req);
-          const checksum = String(body.checksum || "").trim();
-          const sizeBytes = Number(body.sizeBytes || 0);
+          const artifact = parseArtifact(body);
+
           const clientUpdatedAt = body.clientUpdatedAt ? String(body.clientUpdatedAt).trim() : null;
           const clientUpdatedAtMs = clientUpdatedAt ? Date.parse(clientUpdatedAt) : null;
 
           if (clientUpdatedAt && !Number.isFinite(clientUpdatedAtMs)) {
             return json(res, 400, { error: "invalid_client_updated_at" });
           }
+
+          if (artifact && artifact.error) {
+            return json(res, 400, { error: artifact.error });
+          }
+
+          const checksum = artifact ? artifact.checksum : String(body.checksum || "").trim();
+          const sizeBytes = artifact ? artifact.sizeBytes : Number(body.sizeBytes || 0);
 
           if (!checksum || !Number.isFinite(sizeBytes) || sizeBytes <= 0) {
             return json(res, 400, { error: "checksum and positive sizeBytes are required" });
@@ -413,33 +514,100 @@ function createApp(store = createStore()) {
             });
           }
 
-          const revision = {
-            id: store.nextIds.revision++,
-            gameId: game.id,
-            userId: authUser.id,
+          const revision = createRevisionRecord(store, authUser, game, {
             checksum,
             sizeBytes,
             note: String(body.note || "").trim(),
-            createdAt: nowIso(),
-          };
+            clientUpdatedAt: clientUpdatedAt || null,
+            updatedAt: clientUpdatedAtMs ? new Date(clientUpdatedAtMs).toISOString() : nowIso(),
+          });
 
-          store.revisions.push(revision);
+          if (artifact) {
+            const artifactPath = ensureRevisionPath(authUser.id, game.id, revision.id);
+            const normalizedArtifactPath = path.relative(STORAGE_ROOT, artifactPath);
+            withStorageDir(authUser.id, game.id, () => {
+              fs.mkdirSync(path.dirname(artifactPath), { recursive: true });
+              fs.writeFileSync(artifactPath, artifact.compressed);
+            });
+            revision.artifactPath = `/mock-storage/${normalizedArtifactPath}`;
+          }
+
           return json(res, 201, { revision });
         }
 
-        if (method === "POST" && revisionPath.route === "download") {
-          const revision = store.revisions.find(
-            (item) => item.id === revisionPath.revisionId && item.gameId === game.id,
+        if (method === "POST" && revisionPath.route === "resolve") {
+          const body = await parseJsonBody(req);
+          const baseRevision = assertRevisionBelongsToGame(
+            store,
+            game.id,
+            revisionPath.revisionId,
+          );
+
+          if (!baseRevision) {
+            return json(res, 404, { error: "not_found", message: "Base revision not found" });
+          }
+
+          const artifact = parseArtifact(body);
+          if (artifact && artifact.error) {
+            return json(res, 400, { error: artifact.error });
+          }
+
+          const checksum = artifact ? artifact.checksum : String(body.checksum || "").trim();
+          const sizeBytes = artifact ? artifact.sizeBytes : Number(body.sizeBytes || 0);
+          const note = String(body.note || `resolved from ${revisionPath.revisionId}`).trim();
+          const clientUpdatedAt = body.clientUpdatedAt ? String(body.clientUpdatedAt).trim() : null;
+          const clientUpdatedAtMs = clientUpdatedAt ? Date.parse(clientUpdatedAt) : null;
+
+          if (clientUpdatedAt && !Number.isFinite(clientUpdatedAtMs)) {
+            return json(res, 400, { error: "invalid_client_updated_at" });
+          }
+
+          if (!checksum || !Number.isFinite(sizeBytes) || sizeBytes <= 0) {
+            return json(res, 400, { error: "checksum and positive sizeBytes are required" });
+          }
+
+          const revision = createRevisionRecord(store, authUser, game, {
+            checksum,
+            sizeBytes,
+            note,
+            clientUpdatedAt: clientUpdatedAt || null,
+            conflictResolvedFrom: revisionPath.revisionId,
+          });
+
+          if (artifact) {
+            const artifactPath = ensureRevisionPath(authUser.id, game.id, revision.id);
+            const normalizedArtifactPath = path.relative(process.cwd(), artifactPath);
+            withStorageDir(authUser.id, game.id, () => {
+              fs.mkdirSync(path.dirname(artifactPath), { recursive: true });
+              fs.writeFileSync(artifactPath, artifact.compressed);
+            });
+            revision.artifactPath = `/mock-storage/${normalizedArtifactPath}`;
+          }
+
+          return json(res, 201, {
+            revision,
+            resolvedFrom: baseRevision.id,
+          });
+        }
+
+        if ((method === "GET" || method === "POST") && revisionPath.route === "download") {
+          const revision = assertRevisionBelongsToGame(
+            store,
+            game.id,
+            revisionPath.revisionId,
           );
           if (!revision) {
             return json(res, 404, { error: "not_found" });
           }
 
+          const artifactPath =
+            revision.artifactPath || `/mock-storage/users/${authUser.id}/games/${game.id}/revisions/${revision.id}.zip`;
+
           return json(res, 200, {
             revision,
             download: {
               mode: "mock",
-              artifactPath: `/mock-storage/users/${authUser.id}/games/${game.id}/revisions/${revision.id}.zip`,
+              artifactPath,
             },
           });
         }
